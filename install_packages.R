@@ -1,0 +1,1 @@
+install.packages(c("rmarkdown", "tidyverse", "DT"), repos = "https://cran.rstudio.com/")

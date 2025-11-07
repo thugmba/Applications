@@ -1,0 +1,270 @@
+---
+title: "THU GMBA Student Applications Dashboard"
+format:
+  html:
+    theme: cosmo
+    # toc: true
+    page-layout: full
+    css: styles.css
+    embed-resources: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(DT)
+library(ggplot2)
+library(plotly)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate random data
+n_students <- 50
+# List of college names, their QS Rankings (2024) and country
+college_data <- tibble(
+  `College Name` = c(
+    "National University of Singapore (NUS)", 
+    "Nanyang Technological University (NTU)",
+    "University of Hong Kong (HKU)",
+    "Peking University",
+    "Tsinghua University",
+    "The University of Tokyo",
+    "Seoul National University",
+    "Korea Advanced Institute of Science and Technology (KAIST)",
+    "The Chinese University of Hong Kong (CUHK)",
+    "The Hong Kong University of Science and Technology (HKUST)",
+    "Fudan University",
+    "Korea University",
+    "Indian Institute of Technology Bombay (IITB)",
+    "National Taiwan University (NTU)",
+    "Kyoto University"
+  ),
+  `QS Ranking` = c(
+    8,  # NUS
+    11, # NTU Singapore
+    21, # HKU
+    24, # Peking
+    25, # Tsinghua
+    27, # Tokyo
+    33, # SNU
+    40, # KAIST
+    47, # CUHK
+    41, # HKUST
+    31, # Fudan
+    86, # Korea University
+    149,# IIT Bombay
+    46, # NTU Taiwan
+    33  # Kyoto
+  ),
+  Country = c(
+    "Singapore",
+    "Singapore",
+    "Hong Kong",
+    "China",
+    "China",
+    "Japan",
+    "South Korea",
+    "South Korea",
+    "Hong Kong",
+    "Hong Kong",
+    "China",
+    "South Korea",
+    "India",
+    "Taiwan",
+    "Japan"
+  )
+)
+
+# Use only countries that have universities in `college_data` for realistic pairing
+countries <- unique(college_data$Country)
+
+# List of departments
+departments <- c("Computer Science", "Business Administration", "Data Science",
+                "Electrical Engineering", "Mechanical Engineering",
+                "Chemical Engineering", "Economics", "Mathematics",
+                "Physics", "Biology")
+
+# List of English test types
+english_tests <- c("TOEFL", "IELTS", "Duolingo", "TOEIC")
+
+# Generate random names
+first_names <- c("James", "Mary", "John", "Patricia", "Robert", "Jennifer", 
+                "Michael", "Linda", "William", "Elizabeth", "David", "Barbara", 
+                "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", 
+                "Charles", "Karen", "Wei", "Li", "Ming", "Hui", "Yong", 
+                "Xiao", "Jun", "Ravi", "Priya", "Amit", "Neha", "Raj", 
+                "Sanjay", "Ji-hoon", "Min-ji", "Seo-yeon", "Jung-hoon")
+last_names <- c("Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", 
+                "Miller", "Davis", "Rodriguez", "Martinez", "Wang", "Li", 
+                "Zhang", "Chen", "Liu", "Yang", "Patel", "Kumar", "Singh", 
+                "Shah", "Kim", "Lee", "Park", "Choi", "Jung")
+
+# Create the dataset
+# Build a more realistic dataset: sample a country, then pick a college from that country
+student_countries <- sample(countries, n_students, replace = TRUE)
+selected_colleges <- vapply(student_countries, function(ct) {
+  choices <- college_data$`College Name`[college_data$Country == ct]
+  sample(choices, 1)
+}, FUN.VALUE = character(1))
+
+student_data <- tibble(
+  `Row Number` = 1:n_students,
+  Name = paste(
+    sample(first_names, n_students, replace = TRUE),
+    sample(last_names, n_students, replace = TRUE)
+  ),
+  Country = student_countries,
+  `College Name` = selected_colleges,
+  `QS Ranking` = college_data$`QS Ranking`[match(selected_colleges, college_data$`College Name`)],
+  `College Department` = sample(departments, n_students, replace = TRUE),
+  GPA = round(rnorm(n_students, mean = 3.6, sd = 0.3) %>% pmax(2.5) %>% pmin(4.5), 2),
+  `English Test` = sample(english_tests, n_students, replace = TRUE),
+  `English Score` = case_when(
+    `English Test` == "TOEFL" ~ as.character(sample(80:120, n_students, replace = TRUE)),
+    `English Test` == "IELTS" ~ as.character(sample(60:90, n_students, replace = TRUE)/10),
+    `English Test` == "Duolingo" ~ as.character(sample(100:160, n_students, replace = TRUE)),
+    `English Test` == "TOEIC" ~ as.character(sample(300:990, n_students, replace = TRUE))
+  )
+  ,
+  `Chinese Skills` = sample(c('None', 'Beginner', 'Intermediate', 'Advanced'), n_students, replace = TRUE),
+  `Detail` = sapply(1:n_students, function(i) {
+    sprintf('<a href="#" onclick="return false;">View</a>')
+  })
+)
+```
+
+## Student Applications Table
+
+The table below shows student application information. All GPAs have been standardized to a 4.5 scale for consistent comparison across different educational systems. You can:
+
+- Sort any column by clicking on the column header
+- Show different number of entries per page
+- Export the data to various formats
+
+*Note: GPA Standardization*
+
+- Maximum GPA: 4.5
+- All GPAs have been converted to this scale to ensure fair comparison
+- Original GPAs from different scales (e.g., 4.0, 5.0, or percentage systems) have been normalized to the 4.5 scale
+
+```{r}
+#| echo: false
+
+datatable(student_data,
+          extensions = c('Buttons', 'SearchPanes'),
+          options = list(
+            dom = 'Bfrtip',
+            buttons = c('excel', 'pdf', 'print'),
+            pageLength = 50,
+            searchHighlight = TRUE,
+            order = list(list(6, 'desc')),  # Sort by GPA by default (zero-based index)
+            scrollX = TRUE,  # Enable horizontal scrolling
+            autoWidth = FALSE,  # Disable auto width calculation
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().container()).css({'font-size': '14px'});",
+              "}"
+            )
+          ),
+          class = 'cell-border stripe hover',
+          rownames = FALSE,
+          escape = FALSE)  # Allow HTML in the table
+```
+
+## Application Statistics
+
+### Summary Statistics
+```{r}
+#| echo: false
+
+# Create summary statistics
+summary_stats <- student_data %>%
+  summarise(
+    `Total Applications` = n(),
+    `Average GPA` = round(mean(GPA), 2),
+    `Median GPA` = round(median(GPA), 2),
+    `Min GPA` = min(GPA),
+    `Max GPA` = max(GPA)
+  )
+
+# Display summary statistics in a nice format
+datatable(summary_stats,
+          options = list(dom = 't'),
+          class = 'cell-border stripe',
+          rownames = FALSE)
+```
+
+### GPA Distribution (4.5 Scale)
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# Create GPA distribution plot
+gpa_plot <- ggplot(student_data, aes(x = GPA)) +
+  geom_histogram(aes(y = ..density..), bins = 20, fill = "skyblue", color = "black") +
+  geom_density(color = "red", linewidth = 1) +
+  theme_minimal() +
+  labs(title = "Distribution of GPAs",
+       x = "GPA",
+       y = "Density")
+
+ggplotly(gpa_plot)
+```
+
+### Applications by Country
+```{r}
+#| echo: false
+#| warning: false
+
+# Create country distribution plot
+country_plot <- student_data %>%
+  count(Country) %>%
+  ggplot(aes(x = reorder(Country, n), y = n)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Number of Applications by Country",
+       x = "Country",
+       y = "Number of Applications")
+
+ggplotly(country_plot)
+```
+
+### Applications by University Ranking
+```{r}
+#| echo: false
+#| warning: false
+
+# Create university ranking distribution plot
+ranking_plot <- student_data %>%
+  count(`College Name`, `QS Ranking`) %>%
+  ggplot(aes(x = reorder(`College Name`, -`QS Ranking`), y = n)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Applications by University (Ordered by QS Ranking)",
+       x = "University",
+       y = "Number of Applications") +
+  theme(axis.text.y = element_text(size = 8))
+
+ggplotly(ranking_plot)
+```
+
+### English Test Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# Create English test type distribution
+test_plot <- student_data %>%
+  count(`English Test`) %>%
+  ggplot(aes(x = reorder(`English Test`, n), y = n, fill = `English Test`)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Distribution of English Tests",
+       x = "Test Type",
+       y = "Number of Students")
+
+ggplotly(test_plot)
+```

@@ -1,0 +1,20 @@
+/* Layout tweaks: widen main content area */
+
+/* Increase the maximum width of the main content to make tables and plots more readable */
+.content {
+  max-width: 1200px; /* default ~800px */
+  margin: 0 auto;
+}
+/* On very wide screens, allow even more width */
+@media (min-width: 1920px) {
+	.container, .qmd-content {
+		max-width: 1800px;
+	}
+}
+
+/* Small polish: ensure plots use full width inside the container */
+.quarto .cell .figure, .quarto .cell .plotly {
+	width: 100% !important;
+}
+
+/* Keep file available for future styling additions */
