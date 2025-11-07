@@ -118,19 +118,27 @@ student_data <- tibble(
   `QS Ranking` = college_data$`QS Ranking`[match(selected_colleges, college_data$`College Name`)],
   `College Department` = sample(departments, n_students, replace = TRUE),
   GPA = round(rnorm(n_students, mean = 3.6, sd = 0.3) %>% pmax(2.5) %>% pmin(4.5), 2),
-  `English Test` = sample(english_tests, n_students, replace = TRUE),
-  `English Score` = case_when(
-    `English Test` == "TOEFL" ~ as.character(sample(80:120, n_students, replace = TRUE)),
-    `English Test` == "IELTS" ~ as.character(sample(60:90, n_students, replace = TRUE)/10),
-    `English Test` == "Duolingo" ~ as.character(sample(100:160, n_students, replace = TRUE)),
-    `English Test` == "TOEIC" ~ as.character(sample(300:990, n_students, replace = TRUE))
-  )
-  ,
-  `Chinese Skills` = sample(c('None', 'Beginner', 'Intermediate', 'Advanced'), n_students, replace = TRUE),
-  `Detail` = sapply(1:n_students, function(i) {
-    sprintf('<a href="#" onclick="return false;">View</a>')
-  })
+  `English Test` = sample(english_tests, n_students, replace = TRUE)
 )
+
+# Generate English scores based on each student's test type
+student_data <- student_data %>%
+  rowwise() %>%
+  mutate(
+    `English Score` = case_when(
+      `English Test` == "TOEFL" ~ as.character(sample(80:120, 1)),
+      `English Test` == "IELTS" ~ as.character(sample(60:90, 1)/10),
+      `English Test` == "Duolingo" ~ as.character(sample(100:160, 1)),
+      `English Test` == "TOEIC" ~ as.character(sample(300:990, 1))
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(
+    `Chinese Skills` = sample(c('None', 'Beginner', 'Intermediate', 'Advanced'), n(), replace = TRUE),
+    `Detail` = sapply(1:n(), function(i) {
+      sprintf('<a href="#" onclick="return false;">View</a>')
+    })
+  )
 ```
 
 ## Student Applications Table
@@ -173,28 +181,65 @@ datatable(student_data,
 
 ## Application Statistics
 
-### Summary Statistics
+### 1. Applications by Country
 ```{r}
 #| echo: false
+#| warning: false
 
-# Create summary statistics
-summary_stats <- student_data %>%
-  summarise(
-    `Total Applications` = n(),
-    `Average GPA` = round(mean(GPA), 2),
-    `Median GPA` = round(median(GPA), 2),
-    `Min GPA` = min(GPA),
-    `Max GPA` = max(GPA)
-  )
+# Create country distribution plot
+country_plot <- student_data %>%
+  count(Country) %>%
+  ggplot(aes(x = reorder(Country, n), y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Number of Applications by Country",
+       x = "Country",
+       y = "Number of Applications")
 
-# Display summary statistics in a nice format
-datatable(summary_stats,
-          options = list(dom = 't'),
-          class = 'cell-border stripe',
-          rownames = FALSE)
+ggplotly(country_plot)
 ```
 
-### GPA Distribution (4.5 Scale)
+### 2. Applications by University
+```{r}
+#| echo: false
+#| warning: false
+
+# Create university distribution plot
+univ_plot <- student_data %>%
+  count(`College Name`) %>%
+  ggplot(aes(x = reorder(`College Name`, n), y = n)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Number of Applications by University",
+       x = "University",
+       y = "Number of Applications") +
+  theme(axis.text.y = element_text(size = 8))
+
+ggplotly(univ_plot)
+```
+
+### 3. Applications by Department
+```{r}
+#| echo: false
+#| warning: false
+
+# Create department distribution plot
+dept_plot <- student_data %>%
+  count(`College Department`) %>%
+  ggplot(aes(x = reorder(`College Department`, n), y = n)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Number of Applications by Department",
+       x = "Department",
+       y = "Number of Applications")
+
+ggplotly(dept_plot)
+```
+
+### 4. GPA Distribution
 ```{r}
 #| echo: false
 #| warning: false
@@ -212,59 +257,150 @@ gpa_plot <- ggplot(student_data, aes(x = GPA)) +
 ggplotly(gpa_plot)
 ```
 
-### Applications by Country
+### 5. English Test Distribution
 ```{r}
 #| echo: false
 #| warning: false
 
-# Create country distribution plot
-country_plot <- student_data %>%
-  count(Country) %>%
-  ggplot(aes(x = reorder(Country, n), y = n)) +
-  geom_bar(stat = "identity", fill = "lightblue") +
-  coord_flip() +
-  theme_minimal() +
-  labs(title = "Number of Applications by Country",
-       x = "Country",
-       y = "Number of Applications")
-
-ggplotly(country_plot)
-```
-
-### Applications by University Ranking
-```{r}
-#| echo: false
-#| warning: false
-
-# Create university ranking distribution plot
-ranking_plot <- student_data %>%
-  count(`College Name`, `QS Ranking`) %>%
-  ggplot(aes(x = reorder(`College Name`, -`QS Ranking`), y = n)) +
-  geom_bar(stat = "identity", fill = "lightblue") +
-  coord_flip() +
-  theme_minimal() +
-  labs(title = "Applications by University (Ordered by QS Ranking)",
-       x = "University",
-       y = "Number of Applications") +
-  theme(axis.text.y = element_text(size = 8))
-
-ggplotly(ranking_plot)
-```
-
-### English Test Distribution
-```{r}
-#| echo: false
-#| warning: false
-
-# Create English test type distribution
-test_plot <- student_data %>%
+# Create English Test pie chart
+test_dist <- student_data %>%
   count(`English Test`) %>%
-  ggplot(aes(x = reorder(`English Test`, n), y = n, fill = `English Test`)) +
-  geom_bar(stat = "identity") +
-  theme_minimal() +
-  labs(title = "Distribution of English Tests",
-       x = "Test Type",
-       y = "Number of Students")
+  mutate(percentage = n/sum(n) * 100,
+         label = paste0(`English Test`, "\n", round(percentage, 1), "%"))
 
-ggplotly(test_plot)
+pie_plot <- plot_ly(test_dist, labels = ~label, values = ~n, type = 'pie',
+                    textinfo = 'label',
+                    hoverinfo = 'text',
+                    text = ~paste(`English Test`, "\nCount:", n),
+                    marker = list(colors = c("rgb(31, 119, 180)", "rgb(255, 127, 14)", 
+                                          "rgb(44, 160, 44)", "rgb(214, 39, 40)"))) %>%
+  layout(title = "Distribution of English Tests",
+         showlegend = FALSE)
+
+pie_plot
+```
+
+### 6. English Score Distribution per Test Type
+
+#### TOEFL Score Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# TOEFL Distribution (80-120)
+toefl_data <- student_data %>% filter(`English Test` == "TOEFL")
+if(nrow(toefl_data) > 0) {
+  toefl_plot <- plot_ly(x = ~as.numeric(toefl_data$`English Score`),
+                        type = "histogram",
+                        marker = list(color = "skyblue",
+                                     line = list(color = "black", width = 1)),
+                        nbinsx = 20,
+                        name = "TOEFL Scores") %>%
+    layout(title = "TOEFL Score Distribution",
+           xaxis = list(title = "TOEFL Score (80-120)", range = c(80, 120)),
+           yaxis = list(title = "Count"),
+           showlegend = FALSE)
+
+  toefl_plot
+} else {
+  cat("No TOEFL data available")
+}
+```
+
+#### IELTS Score Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# IELTS Distribution (6.0-9.0)
+ielts_data <- student_data %>% filter(`English Test` == "IELTS")
+if(nrow(ielts_data) > 0) {
+  ielts_plot <- plot_ly(x = ~as.numeric(ielts_data$`English Score`),
+                        type = "histogram",
+                        marker = list(color = "lightgreen",
+                                     line = list(color = "black", width = 1)),
+                        nbinsx = 20,
+                        name = "IELTS Scores") %>%
+    layout(title = "IELTS Score Distribution",
+           xaxis = list(title = "IELTS Score (6.0-9.0)", range = c(6, 9)),
+           yaxis = list(title = "Count"),
+           showlegend = FALSE)
+
+  ielts_plot
+} else {
+  cat("No IELTS data available")
+}
+```
+
+#### Duolingo Score Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# Duolingo Distribution (100-160)
+duo_data <- student_data %>% filter(`English Test` == "Duolingo")
+if(nrow(duo_data) > 0) {
+  duo_plot <- plot_ly(x = ~as.numeric(duo_data$`English Score`),
+                      type = "histogram",
+                      marker = list(color = "pink",
+                                   line = list(color = "black", width = 1)),
+                      nbinsx = 20,
+                      name = "Duolingo Scores") %>%
+    layout(title = "Duolingo Score Distribution",
+           xaxis = list(title = "Duolingo Score (100-160)", range = c(100, 160)),
+           yaxis = list(title = "Count"),
+           showlegend = FALSE)
+
+  duo_plot
+} else {
+  cat("No Duolingo data available")
+}
+```
+
+#### TOEIC Score Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# TOEIC Distribution (300-990)
+toeic_data <- student_data %>% filter(`English Test` == "TOEIC")
+if(nrow(toeic_data) > 0) {
+  toeic_plot <- plot_ly(x = ~as.numeric(toeic_data$`English Score`),
+                        type = "histogram",
+                        marker = list(color = "lightblue",
+                                     line = list(color = "black", width = 1)),
+                        nbinsx = 20,
+                        name = "TOEIC Scores") %>%
+    layout(title = "TOEIC Score Distribution",
+           xaxis = list(title = "TOEIC Score (300-990)", range = c(300, 990)),
+           yaxis = list(title = "Count"),
+           showlegend = FALSE)
+
+  toeic_plot
+} else {
+  cat("No TOEIC data available")
+}
+```
+
+### 7. Chinese Level Distribution
+```{r}
+#| echo: false
+#| warning: false
+
+# Create Chinese Skills pie chart
+chinese_dist <- student_data %>%
+  count(`Chinese Skills`) %>%
+  mutate(percentage = n/sum(n) * 100,
+         label = paste0(`Chinese Skills`, "\n", round(percentage, 1), "%"))
+
+chinese_pie <- plot_ly(chinese_dist, labels = ~label, values = ~n, type = 'pie',
+                      textinfo = 'label',
+                      hoverinfo = 'text',
+                      text = ~paste(`Chinese Skills`, "\nCount:", n),
+                      marker = list(colors = c("rgb(31, 119, 180)", "rgb(255, 127, 14)", 
+                                            "rgb(44, 160, 44)", "rgb(214, 39, 40)"))) %>%
+  layout(title = "Distribution of Chinese Language Skills",
+         showlegend = FALSE)
+
+chinese_pie
 ```
