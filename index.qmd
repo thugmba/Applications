@@ -162,7 +162,33 @@ datatable(student_data,
           extensions = c('Buttons', 'SearchPanes'),
           options = list(
             dom = 'Bfrtip',
-            buttons = c('excel', 'pdf', 'print'),
+            buttons = list(
+              'excel',
+              list(
+                extend = 'pdf',
+                orientation = 'landscape',
+                pageSize = 'A4',
+                customize = JS(
+                  "function(doc) {",
+                  "  doc.content[1].table.widths = Array(doc.content[1].table.body[0].length).fill('*');",
+                  "  doc.content[1].layout = {",
+                  "    hLineWidth: function(i, node) { return 0.5; },",
+                  "    vLineWidth: function(i, node) { return 0.5; },",
+                  "    hLineColor: function(i, node) { return '#aaa'; },",
+                  "    vLineColor: function(i, node) { return '#aaa'; }",
+                  "  };",
+                  "  doc.content[1].fontSize = 8;",
+                  "  doc.pageMargins = [20, 20, 20, 20];",
+                  "  doc.defaultStyle.fontSize = 8;",
+                  "  doc.styles.tableHeader.fontSize = 9;",
+                  "}"
+                ),
+                exportOptions = list(
+                  columns = ':visible'
+                )
+              ),
+              'print'
+            ),
             pageLength = 50,
             searchHighlight = TRUE,
             order = list(list(6, 'desc')),  # Sort by GPA by default (zero-based index)
